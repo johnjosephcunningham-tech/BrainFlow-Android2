@@ -1,0 +1,75 @@
+name: Build FULL BrainFlow APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Unzip project
+        run: |
+          mkdir project
+          unzip BrainFlow-GitHub-Ready.zip -d project
+
+      - name: Fix Android asset packaging
+        run: |
+          mv project/app/src/main/assets/_next project/app/src/main/assets/next
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          root = Path("project/app/src/main/assets")
+
+          for p in root.rglob("*"):
+              if not p.is_file():
+                  continue
+
+              try:
+                  text = p.read_text(encoding="utf-8")
+              except:
+                  continue
+
+              fixed = text.replace("/_next/", "/next/")
+              fixed = fixed.replace("_next/", "next/")
+
+              if fixed != text:
+                  p.write_text(fixed, encoding="utf-8")
+          PY
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Build FULL APK
+        run: gradle -p project :app:assembleDebug --stacktrace
+
+      - name: Verify BrainFlow files
+        run: |
+          unzip -l project/app/build/outputs/apk/debug/app-debug.apk | grep "assets/next/static/chunks"
+          test $(stat -c%s project/app/build/outputs/apk/debug/app-debug.apk) -gt 500000
+
+      - name: Upload FULL APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BrainFlow-FULL-APK
+          path: project/app/build/outputs/apk/debug/app-debug.apk
