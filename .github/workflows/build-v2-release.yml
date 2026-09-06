@@ -1,0 +1,67 @@
+name: Build BrainFlow v2 Release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Unzip BrainFlow v2 project
+        run: |
+          rm -rf v2
+          mkdir v2
+          unzip BrainFlow-v2-GitHub-Build-READY.zip -d v2
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android 35
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Restore permanent signing key
+        env:
+          KEYSTORE_B64: ${{ secrets.BRAINFLOW_KEYSTORE_BASE64 }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/brainflow-signing"
+          printf '%s' "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/brainflow-signing/BrainFlow-release.jks"
+
+      - name: Build signed release APK
+        env:
+          BRAINFLOW_KEYSTORE_PATH: ${{ runner.temp }}/brainflow-signing/BrainFlow-release.jks
+          BRAINFLOW_KEYSTORE_PASSWORD: ${{ secrets.BRAINFLOW_KEYSTORE_PASSWORD }}
+          BRAINFLOW_KEY_ALIAS: ${{ secrets.BRAINFLOW_KEY_ALIAS }}
+        run: gradle -p v2 :app:assembleRelease --stacktrace
+
+      - name: Verify APK
+        run: |
+          APK=v2/app/build/outputs/apk/release/app-release.apk
+          test -f "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --verbose --print-certs "$APK"
+          "$ANDROID_HOME/build-tools/35.0.0/zipalign" -c -v 4 "$APK"
+          unzip -t "$APK"
+          unzip -p "$APK" assets/index.html | grep -q "2.0.0 Demo"
+
+      - name: Rename APK
+        run: cp v2/app/build/outputs/apk/release/app-release.apk BrainFlow-v2.0.0.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BrainFlow-v2.0.0
+          path: BrainFlow-v2.0.0.apk
+          if-no-files-found: error
