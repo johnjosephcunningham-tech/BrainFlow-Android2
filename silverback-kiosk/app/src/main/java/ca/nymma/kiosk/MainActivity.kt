@@ -5,6 +5,10 @@ import android.app.Activity
 import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Context
+import android.content.BroadcastReceiver
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
@@ -28,6 +32,11 @@ class MainActivity : Activity() {
  private val h = Handler(Looper.getMainLooper())
  private val showIdle = Runnable { hideKeyboard(); idle.visibility = View.VISIBLE; black.visibility = View.GONE }
  private val showBlack = Runnable { hideKeyboard(); idle.visibility = View.GONE; black.visibility = View.VISIBLE }
+ private val screenReceiver = object: BroadcastReceiver() {
+  override fun onReceive(context: Context?, intent: Intent?) {
+   if(intent?.action == Intent.ACTION_SCREEN_ON) runOnUiThread { returnToFrontPage() }
+  }
+ }
  private fun dp(v:Int)=(v*resources.displayMetrics.density).toInt()
 
  @SuppressLint("SetJavaScriptEnabled")
@@ -49,7 +58,7 @@ class MainActivity : Activity() {
   web.settings.apply {
    javaScriptEnabled=true; domStorageEnabled=true; databaseEnabled=true
    allowFileAccess=false; allowContentAccess=true; mediaPlaybackRequiresUserGesture=false
-   userAgentString += " SilverbackKiosk/1.7"
+   userAgentString += " SilverbackKiosk/1.8"
   }
   web.webChromeClient=object:WebChromeClient(){override fun onPermissionRequest(r:PermissionRequest)=runOnUiThread{r.grant(r.resources)}}
   web.webViewClient=object:WebViewClient(){
@@ -61,6 +70,8 @@ class MainActivity : Activity() {
    override fun onReceivedSslError(v:WebView?,x:SslErrorHandler?,e:android.net.http.SslError?){x?.cancel()}
   }
   if(s==null) web.loadUrl(home) else web.restoreState(s)
+  val filter=IntentFilter(Intent.ACTION_SCREEN_ON)
+  if(Build.VERSION.SDK_INT>=33) registerReceiver(screenReceiver,filter,Context.RECEIVER_NOT_EXPORTED) else registerReceiver(screenReceiver,filter)
   reset()
  }
 
@@ -117,7 +128,8 @@ class MainActivity : Activity() {
  }
 
  private fun hideKeyboard(){currentFocus?.clearFocus();(getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).hideSoftInputFromWindow(web.windowToken,0)}
- private fun wake(){idle.visibility=View.GONE;black.visibility=View.GONE;web.loadUrl(home);reset()}
+ private fun returnToFrontPage(){hideKeyboard();idle.visibility=View.GONE;black.visibility=View.GONE;web.clearHistory();web.loadUrl(home);reset();hideUi()}
+ private fun wake(){returnToFrontPage()}
  private fun reset(){h.removeCallbacks(showIdle);h.removeCallbacks(showBlack);h.postDelayed(showIdle,120000L);h.postDelayed(showBlack,1800000L)}
  override fun dispatchTouchEvent(e:MotionEvent?):Boolean {
   if(e?.action==MotionEvent.ACTION_DOWN&&(idle.visibility==View.VISIBLE||black.visibility==View.VISIBLE)){wake();return true}
@@ -129,5 +141,5 @@ class MainActivity : Activity() {
  override fun onWindowFocusChanged(f:Boolean){super.onWindowFocusChanged(f);if(f)hideUi()}
  @Deprecated("Deprecated in Java") override fun onBackPressed(){if(web.canGoBack())web.goBack()else web.loadUrl(home)}
  override fun onSaveInstanceState(o:Bundle){web.saveState(o);super.onSaveInstanceState(o)}
- override fun onDestroy(){h.removeCallbacks(showIdle);h.removeCallbacks(showBlack);web.destroy();super.onDestroy()}
+ override fun onDestroy(){h.removeCallbacks(showIdle);h.removeCallbacks(showBlack);try{unregisterReceiver(screenReceiver)}catch(_:Exception){};web.destroy();super.onDestroy()}
 }
