@@ -59,7 +59,7 @@ class MainActivity : Activity() {
   web.settings.apply {
    javaScriptEnabled=true; domStorageEnabled=true; databaseEnabled=true
    allowFileAccess=false; allowContentAccess=true; mediaPlaybackRequiresUserGesture=false
-   userAgentString += " SilverbackKiosk/1.9"
+   userAgentString += " SilverbackKiosk/1.10"
   }
   web.webChromeClient=object:WebChromeClient(){override fun onPermissionRequest(r:PermissionRequest)=runOnUiThread{r.grant(r.resources)}}
   web.webViewClient=object:WebViewClient(){
@@ -131,7 +131,7 @@ class MainActivity : Activity() {
  private fun hideKeyboard(){currentFocus?.clearFocus();(getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).hideSoftInputFromWindow(web.windowToken,0)}
  private fun returnToFrontPage(){hideKeyboard();idle.visibility=View.GONE;black.visibility=View.GONE;web.clearHistory();web.loadUrl(home);reset();hideUi()}
  private fun wake(){returnToFrontPage()}
- private fun reset(){h.removeCallbacks(showIdle);h.removeCallbacks(showBlack);h.postDelayed(showIdle,120000L);h.postDelayed(showBlack,1800000L)}
+ private fun reset(){h.removeCallbacks(showIdle);h.removeCallbacks(showBlack);h.postDelayed(showIdle,60000L);h.postDelayed(showBlack,1800000L)}
  override fun dispatchTouchEvent(e:MotionEvent?):Boolean {
   if(e?.action==MotionEvent.ACTION_DOWN&&(idle.visibility==View.VISIBLE||black.visibility==View.VISIBLE)){wake();return true}
   reset();return super.dispatchTouchEvent(e)
