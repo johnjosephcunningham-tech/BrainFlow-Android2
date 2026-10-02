@@ -43,6 +43,7 @@ class MainActivity : Activity() {
  override fun onCreate(s: Bundle?) {
   super.onCreate(s)
   window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+  window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
   hideUi(); dedicated()
   root=FrameLayout(this)
   web=WebView(this)
@@ -58,7 +59,7 @@ class MainActivity : Activity() {
   web.settings.apply {
    javaScriptEnabled=true; domStorageEnabled=true; databaseEnabled=true
    allowFileAccess=false; allowContentAccess=true; mediaPlaybackRequiresUserGesture=false
-   userAgentString += " SilverbackKiosk/1.8"
+   userAgentString += " SilverbackKiosk/1.9"
   }
   web.webChromeClient=object:WebChromeClient(){override fun onPermissionRequest(r:PermissionRequest)=runOnUiThread{r.grant(r.resources)}}
   web.webViewClient=object:WebViewClient(){
