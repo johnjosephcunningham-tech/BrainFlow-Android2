@@ -6,6 +6,7 @@ import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Context
 import android.graphics.Color
+import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -26,7 +27,7 @@ class MainActivity : Activity() {
  private lateinit var blackScreen: View
  private val home = "https://book.nymma.ca/kiosk"
  private val handler = Handler(Looper.getMainLooper())
- private val idleDelay = 3 * 60 * 1000L
+ private val idleDelay = 2 * 60 * 1000L
  private val blackDelay = 30 * 60 * 1000L
  private val showIdle = Runnable { idleScreen.visibility = View.VISIBLE; blackScreen.visibility = View.GONE }
  private val showBlack = Runnable { idleScreen.visibility = View.GONE; blackScreen.visibility = View.VISIBLE }
