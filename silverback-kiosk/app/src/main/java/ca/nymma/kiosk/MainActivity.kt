@@ -14,6 +14,7 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.view.inputmethod.InputMethodManager
 import android.webkit.*
 import android.widget.FrameLayout
 import android.widget.ImageView
@@ -29,8 +30,8 @@ class MainActivity : Activity() {
  private val handler = Handler(Looper.getMainLooper())
  private val idleDelay = 2 * 60 * 1000L
  private val blackDelay = 30 * 60 * 1000L
- private val showIdle = Runnable { idleScreen.visibility = View.VISIBLE; blackScreen.visibility = View.GONE }
- private val showBlack = Runnable { idleScreen.visibility = View.GONE; blackScreen.visibility = View.VISIBLE }
+ private val showIdle = Runnable { hideKeyboard(); web.clearFocus(); idleScreen.visibility = View.VISIBLE; blackScreen.visibility = View.GONE }
+ private val showBlack = Runnable { hideKeyboard(); web.clearFocus(); idleScreen.visibility = View.GONE; blackScreen.visibility = View.VISIBLE }
 
  @SuppressLint("SetJavaScriptEnabled")
  override fun onCreate(savedInstanceState: Bundle?) {
@@ -87,6 +88,12 @@ class MainActivity : Activity() {
    }
    addView(title, FrameLayout.LayoutParams(-1, -2, Gravity.CENTER).apply { topMargin = 420 })
   }
+ }
+
+ private fun hideKeyboard() {
+  currentFocus?.clearFocus()
+  val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+  imm.hideSoftInputFromWindow(web.windowToken, 0)
  }
 
  private fun wakeFromIdle() {
