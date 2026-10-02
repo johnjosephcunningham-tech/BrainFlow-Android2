@@ -4,7 +4,7 @@ import android.app.Activity
 import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Context
-import android.graphics.Color
+import android.graphics.Color\nimport android.graphics.BitmapFactory
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -24,11 +24,11 @@ class MainActivity:Activity(){
  private val showBlack=Runnable{hideKeyboard();idle.visibility=View.GONE;black.visibility=View.VISIBLE}
  @SuppressLint("SetJavaScriptEnabled") override fun onCreate(s:Bundle?){super.onCreate(s);window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);hideUi();dedicated()
   root=FrameLayout(this);web=WebView(this);root.addView(web,FrameLayout.LayoutParams(-1,-1))
-  idle=ImageView(this).apply{setImageResource(R.drawable.kiosk_bg);setBackgroundColor(Color.BLACK);adjustViewBounds=false;scaleType=if(resources.configuration.orientation==2) ImageView.ScaleType.CENTER_CROP else ImageView.ScaleType.FIT_CENTER;visibility=View.GONE;setOnClickListener{wake()}}
+  idle=ImageView(this).apply{\n   setBackgroundColor(Color.rgb(12,12,12))\n   val bmp=BitmapFactory.decodeResource(resources,R.drawable.kiosk_bg)\n   if(bmp!=null) setImageBitmap(bmp) else setImageResource(R.drawable.gorilla_icon)\n   adjustViewBounds=false\n   scaleType=if(resources.configuration.orientation==2) ImageView.ScaleType.CENTER_CROP else ImageView.ScaleType.FIT_CENTER\n   visibility=View.GONE\n   setOnClickListener{wake()}\n  }
   black=View(this).apply{setBackgroundColor(Color.BLACK);visibility=View.GONE;setOnClickListener{wake()}}
   root.addView(idle,FrameLayout.LayoutParams(-1,-1));root.addView(black,FrameLayout.LayoutParams(-1,-1));setContentView(root)
   CookieManager.getInstance().setAcceptCookie(true);CookieManager.getInstance().setAcceptThirdPartyCookies(web,true)
-  web.settings.apply{javaScriptEnabled=true;domStorageEnabled=true;databaseEnabled=true;allowFileAccess=false;allowContentAccess=true;mediaPlaybackRequiresUserGesture=false;userAgentString+=" SilverbackKiosk/1.5"}
+  web.settings.apply{javaScriptEnabled=true;domStorageEnabled=true;databaseEnabled=true;allowFileAccess=false;allowContentAccess=true;mediaPlaybackRequiresUserGesture=false;userAgentString+=" SilverbackKiosk/1.6"}
   web.webChromeClient=object:WebChromeClient(){override fun onPermissionRequest(r:PermissionRequest)=runOnUiThread{r.grant(r.resources)}}
   web.webViewClient=object:WebViewClient(){override fun shouldOverrideUrlLoading(v:WebView,r:WebResourceRequest):Boolean{val s=r.url.scheme?.lowercase();if(s=="https"||s=="http")return false;Toast.makeText(this@MainActivity,"This tablet is locked to Silverback.",Toast.LENGTH_SHORT).show();return true};override fun onReceivedSslError(v:WebView?,x:SslErrorHandler?,e:android.net.http.SslError?){x?.cancel()}}
   if(s==null)web.loadUrl(home)else web.restoreState(s);reset()
