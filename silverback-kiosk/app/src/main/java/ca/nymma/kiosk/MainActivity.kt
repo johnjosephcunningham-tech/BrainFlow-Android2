@@ -5,7 +5,6 @@ import android.app.Activity
 import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
 import android.content.Context
-import android.content.pm.ActivityInfo
 import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
@@ -35,7 +34,6 @@ class MainActivity : Activity() {
  @SuppressLint("SetJavaScriptEnabled")
  override fun onCreate(savedInstanceState: Bundle?) {
   super.onCreate(savedInstanceState)
-  requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
   window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
   hideSystemUi()
   enableDedicatedModeIfOwner()
