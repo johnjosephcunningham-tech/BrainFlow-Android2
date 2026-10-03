@@ -38,7 +38,7 @@ class MainActivity : Activity() {
   black=View(this).apply{setBackgroundColor(Color.BLACK);visibility=View.GONE;setOnClickListener{wake()}}
   root.addView(idle,FrameLayout.LayoutParams(-1,-1));root.addView(black,FrameLayout.LayoutParams(-1,-1));setContentView(root)
   CookieManager.getInstance().setAcceptCookie(true);CookieManager.getInstance().setAcceptThirdPartyCookies(web,true)
-  web.settings.apply{javaScriptEnabled=true;domStorageEnabled=true;databaseEnabled=true;allowFileAccess=false;allowContentAccess=true;mediaPlaybackRequiresUserGesture=false;userAgentString+=" SilverbackKiosk/1.13"}
+  web.settings.apply{javaScriptEnabled=true;domStorageEnabled=true;databaseEnabled=true;allowFileAccess=false;allowContentAccess=true;mediaPlaybackRequiresUserGesture=false;userAgentString+=" SilverbackKiosk/1.14"}
   web.webChromeClient=object:WebChromeClient(){override fun onPermissionRequest(r:PermissionRequest)=runOnUiThread{r.grant(r.resources)}}
   web.webViewClient=object:WebViewClient(){
    override fun shouldOverrideUrlLoading(v:WebView,r:WebResourceRequest):Boolean{val x=r.url.scheme?.lowercase();if(x=="https"||x=="http")return false;Toast.makeText(this@MainActivity,"This tablet is locked to Silverback.",Toast.LENGTH_SHORT).show();return true}
@@ -52,7 +52,7 @@ class MainActivity : Activity() {
  private fun buildIdleScreen():FrameLayout{
   val frame=FrameLayout(this).apply{setBackgroundColor(Color.BLACK);visibility=View.GONE;setOnClickListener{wake()}}
   val poster=ImageView(this).apply{
-   val full=File(filesDir,"gym_rules_full.jpg")
+   val full=File(getExternalFilesDir(null),"gym_rules_full.jpg")
    if(full.exists())setImageBitmap(BitmapFactory.decodeFile(full.absolutePath)) else setImageResource(R.drawable.gym_rules_poster)
    scaleType=ImageView.ScaleType.FIT_CENTER;setBackgroundColor(Color.BLACK)
   }
