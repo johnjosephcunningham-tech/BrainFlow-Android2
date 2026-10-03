@@ -19,6 +19,8 @@ import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.graphics.Rect
+import android.view.ViewTreeObserver
 import android.view.inputmethod.InputMethodManager
 import android.webkit.*
 import android.widget.*
@@ -59,7 +61,7 @@ class MainActivity : Activity() {
   web.settings.apply {
    javaScriptEnabled=true; domStorageEnabled=true; databaseEnabled=true
    allowFileAccess=false; allowContentAccess=true; mediaPlaybackRequiresUserGesture=false
-   userAgentString += " SilverbackKiosk/1.10"
+   userAgentString += " SilverbackKiosk/1.11"
   }
   web.webChromeClient=object:WebChromeClient(){override fun onPermissionRequest(r:PermissionRequest)=runOnUiThread{r.grant(r.resources)}}
   web.webViewClient=object:WebViewClient(){
@@ -73,59 +75,84 @@ class MainActivity : Activity() {
   if(s==null) web.loadUrl(home) else web.restoreState(s)
   val filter=IntentFilter(Intent.ACTION_SCREEN_ON)
   if(Build.VERSION.SDK_INT>=33) registerReceiver(screenReceiver,filter,Context.RECEIVER_NOT_EXPORTED) else registerReceiver(screenReceiver,filter)
+  installKeyboardResizeFix()
   reset()
  }
 
  private fun buildIdleScreen():FrameLayout {
-  val portrait=resources.configuration.orientation==android.content.res.Configuration.ORIENTATION_PORTRAIT
   val frame=FrameLayout(this).apply { setBackgroundColor(Color.BLACK); visibility=View.GONE; setOnClickListener{wake()} }
-
-  val bg=ImageView(this).apply {
-   setImageResource(R.drawable.kiosk_bg)
-   scaleType=ImageView.ScaleType.FIT_CENTER
-   adjustViewBounds=false
-  }
-  frame.addView(bg,FrameLayout.LayoutParams(-1,-1))
-
-  val shade=View(this).apply { setBackgroundColor(Color.argb(65,0,0,0)) }
-  frame.addView(shade,FrameLayout.LayoutParams(-1,-1))
-
+  val scroll=ScrollView(this).apply { isFillViewport=true; setBackgroundColor(Color.BLACK) }
   val content=LinearLayout(this).apply {
-   orientation=LinearLayout.VERTICAL
-   gravity=Gravity.CENTER_HORIZONTAL
-   setPadding(dp(if(portrait)24 else 48),dp(12),dp(if(portrait)24 else 48),dp(18))
+   orientation=LinearLayout.VERTICAL; gravity=Gravity.CENTER_HORIZONTAL
+   setPadding(dp(24),dp(18),dp(24),dp(92)); setBackgroundColor(Color.BLACK)
   }
-  val contentParams=FrameLayout.LayoutParams(
-   if(portrait) -1 else dp(600), -2, Gravity.CENTER
+  scroll.addView(content,FrameLayout.LayoutParams(-1,-1))
+  frame.addView(scroll,FrameLayout.LayoutParams(-1,-1))
+
+  val gorilla=ImageView(this).apply { setImageResource(R.drawable.gorilla_icon); scaleType=ImageView.ScaleType.CENTER_INSIDE }
+  content.addView(gorilla,LinearLayout.LayoutParams(-1,dp(130)))
+
+  fun t(value:String,size:Float,bold:Boolean=false)=TextView(this).apply {
+   text=value; setTextColor(Color.WHITE); textSize=size; gravity=Gravity.CENTER
+   typeface=Typeface.create("sans-serif-condensed",if(bold)Typeface.BOLD else Typeface.NORMAL)
+   setShadowLayer(5f,0f,2f,Color.BLACK)
+  }
+  content.addView(t("SILVERBACK",38f,true))
+  content.addView(t("NORTH YORK",21f,true).apply{setTextColor(Color.rgb(220,25,28))})
+  content.addView(t("MIXED MARTIAL ARTS",15f,true),LinearLayout.LayoutParams(-1,-2).apply{bottomMargin=dp(8)})
+  content.addView(t("GYM RULES",44f,true).apply{
+   setPadding(dp(8),dp(5),dp(8),dp(5)); background=GradientDrawable().apply{setColor(Color.rgb(125,12,16))}
+  },LinearLayout.LayoutParams(-1,-2).apply{bottomMargin=dp(10)})
+
+  val rules=listOf(
+   "👣  GOING BAREFOOT IS ONLY ALLOWED ON THE MATS.",
+   "👟  YOU MUST WEAR SHOES/SANDALS AT ALL TIMES WHEN NOT ON THE MAT.",
+   "🤼  DO NOT ROLL TOO HARD/AGGRESSIVELY AND/OR INJURE YOUR TRAINING PARTNERS.",
+   "✋  NEVER CRANK SUBMISSIONS.",
+   "✓  SUBMISSIONS MUST ALWAYS BE FINISHED SLOWLY & JUST LET GO IF THEY’RE NOT TAPPING.",
+   "👏  TAP EARLY & OFTEN TO KEEP YOURSELF SAFE.",
+   "✂  MAKE SURE YOUR FINGERNAILS AND TOENAILS ARE ALWAYS TRIMMED.",
+   "✚  IF YOU HAVE A SKIN CONDITION LET A COACH KNOW AND/OR STAY HOME.",
+   "●  IF YOU HAVE A COLD SORE, STAY HOME.",
+   "⌂  IF SICK, PLEASE STAY HOME.",
+   "♥  BE FRIENDLY AND SPREAD GOOD VIBES!"
   )
-  frame.addView(content,contentParams)
-
-  val gorilla=ImageView(this).apply {
-   setImageResource(R.drawable.gorilla_icon)
-   scaleType=ImageView.ScaleType.CENTER_INSIDE
+  rules.forEach { rule ->
+   content.addView(t(rule,15f,true).apply{gravity=Gravity.START or Gravity.CENTER_VERTICAL;setPadding(dp(10),dp(7),dp(10),dp(7))},
+    LinearLayout.LayoutParams(-1,-2))
+   content.addView(View(this).apply{setBackgroundColor(Color.rgb(115,15,18))},LinearLayout.LayoutParams(-1,dp(1)))
   }
-  content.addView(gorilla,LinearLayout.LayoutParams(-1,dp(if(portrait)170 else 125)))
+  content.addView(t("RESPECT THE GYM. RESPECT EACH OTHER. GET BETTER EVERY DAY.",17f,true).apply{setTextColor(Color.rgb(220,25,28))},
+   LinearLayout.LayoutParams(-1,-2).apply{topMargin=dp(10)})
+  content.addView(t("THANK YOU FOR BEING PART OF THE SILVERBACK FAMILY.",11f,true))
 
-  fun text(value:String,size:Float,bold:Boolean=false,spacing:Float=0f)=TextView(this).apply {
-   this.text=value; setTextColor(Color.WHITE); textSize=size; gravity=Gravity.CENTER
-   typeface=Typeface.create(if(bold)"sans-serif-condensed" else "sans-serif",if(bold)Typeface.BOLD else Typeface.NORMAL)
-   letterSpacing=spacing
-   setShadowLayer(7f,0f,2f,Color.BLACK)
+  val bar=TextView(this).apply {
+   text="MEMBER & VISITOR CHECK-IN  →"; setTextColor(Color.WHITE); textSize=20f; gravity=Gravity.CENTER
+   typeface=Typeface.DEFAULT_BOLD; setBackgroundColor(Color.rgb(215,20,24)); setOnClickListener{wake()}
   }
-
-  content.addView(text("SILVERBACK",if(portrait)40f else 36f,true,.05f),LinearLayout.LayoutParams(-1,-2))
-  content.addView(text("MARTIAL ARTS",if(portrait)18f else 16f,true,.18f),LinearLayout.LayoutParams(-1,-2).apply{bottomMargin=dp(if(portrait)22 else 12)})
-  content.addView(text("MEMBER & VISITOR CHECK-IN",if(portrait)23f else 22f,true),LinearLayout.LayoutParams(-1,-2))
-  content.addView(text("Welcome! Please complete the steps below.",if(portrait)15f else 14f),LinearLayout.LayoutParams(-1,-2).apply{topMargin=dp(5);bottomMargin=dp(if(portrait)20 else 12)})
-
-  val button=TextView(this).apply {
-   text="GET STARTED  →"; setTextColor(Color.WHITE); textSize=if(portrait)19f else 17f
-   gravity=Gravity.CENTER; typeface=Typeface.DEFAULT_BOLD
-   background=GradientDrawable().apply { setColor(Color.rgb(225,25,28)); cornerRadius=dp(5).toFloat() }
-   setOnClickListener{wake()}
-  }
-  content.addView(button,LinearLayout.LayoutParams(-1,dp(if(portrait)60 else 52)).apply{marginStart=dp(if(portrait)16 else 70);marginEnd=dp(if(portrait)16 else 70)})
+  frame.addView(bar,FrameLayout.LayoutParams(-1,dp(68),Gravity.BOTTOM))
   return frame
+ }
+
+ private fun installKeyboardResizeFix(){
+  val decor=window.decorView
+  decor.viewTreeObserver.addOnGlobalLayoutListener(object:ViewTreeObserver.OnGlobalLayoutListener{
+   override fun onGlobalLayout(){
+    if(!::web.isInitialized) return
+    val r=Rect(); decor.getWindowVisibleDisplayFrame(r)
+    val total=decor.rootView.height
+    val obscured=total-r.bottom
+    val keyboardOpen=obscured>total*0.15
+    val lp=web.layoutParams as FrameLayout.LayoutParams
+    val wanted=if(keyboardOpen) r.height() else FrameLayout.LayoutParams.MATCH_PARENT
+    if(lp.height!=wanted){
+     lp.height=wanted; web.layoutParams=lp
+     if(keyboardOpen) web.postDelayed({
+      web.evaluateJavascript("(function(){var e=document.activeElement;if(e&&e.scrollIntoView){e.scrollIntoView({block:'center',behavior:'smooth'});}})();",null)
+     },180)
+    }
+   }
+  })
  }
 
  private fun hideKeyboard(){currentFocus?.clearFocus();(getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager).hideSoftInputFromWindow(web.windowToken,0)}
