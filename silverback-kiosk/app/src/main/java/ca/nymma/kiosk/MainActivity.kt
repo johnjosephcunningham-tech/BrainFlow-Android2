@@ -6,6 +6,8 @@ import android.app.admin.DevicePolicyManager
 import android.content.*
 import android.graphics.Color
 import android.graphics.Rect
+import android.graphics.BitmapFactory
+import java.io.File
 import android.os.*
 import android.view.*
 import android.view.inputmethod.InputMethodManager
@@ -36,7 +38,7 @@ class MainActivity : Activity() {
   black=View(this).apply{setBackgroundColor(Color.BLACK);visibility=View.GONE;setOnClickListener{wake()}}
   root.addView(idle,FrameLayout.LayoutParams(-1,-1));root.addView(black,FrameLayout.LayoutParams(-1,-1));setContentView(root)
   CookieManager.getInstance().setAcceptCookie(true);CookieManager.getInstance().setAcceptThirdPartyCookies(web,true)
-  web.settings.apply{javaScriptEnabled=true;domStorageEnabled=true;databaseEnabled=true;allowFileAccess=false;allowContentAccess=true;mediaPlaybackRequiresUserGesture=false;userAgentString+=" SilverbackKiosk/1.12"}
+  web.settings.apply{javaScriptEnabled=true;domStorageEnabled=true;databaseEnabled=true;allowFileAccess=false;allowContentAccess=true;mediaPlaybackRequiresUserGesture=false;userAgentString+=" SilverbackKiosk/1.13"}
   web.webChromeClient=object:WebChromeClient(){override fun onPermissionRequest(r:PermissionRequest)=runOnUiThread{r.grant(r.resources)}}
   web.webViewClient=object:WebViewClient(){
    override fun shouldOverrideUrlLoading(v:WebView,r:WebResourceRequest):Boolean{val x=r.url.scheme?.lowercase();if(x=="https"||x=="http")return false;Toast.makeText(this@MainActivity,"This tablet is locked to Silverback.",Toast.LENGTH_SHORT).show();return true}
@@ -49,7 +51,11 @@ class MainActivity : Activity() {
 
  private fun buildIdleScreen():FrameLayout{
   val frame=FrameLayout(this).apply{setBackgroundColor(Color.BLACK);visibility=View.GONE;setOnClickListener{wake()}}
-  val poster=ImageView(this).apply{setImageResource(R.drawable.gym_rules_poster);scaleType=ImageView.ScaleType.FIT_CENTER;setBackgroundColor(Color.BLACK)}
+  val poster=ImageView(this).apply{
+   val full=File(filesDir,"gym_rules_full.jpg")
+   if(full.exists())setImageBitmap(BitmapFactory.decodeFile(full.absolutePath)) else setImageResource(R.drawable.gym_rules_poster)
+   scaleType=ImageView.ScaleType.FIT_CENTER;setBackgroundColor(Color.BLACK)
+  }
   frame.addView(poster,FrameLayout.LayoutParams(-1,-1).apply{bottomMargin=dp(68)})
   val bar=TextView(this).apply{text="MEMBER & VISITOR CHECK-IN  →";setTextColor(Color.WHITE);textSize=20f;gravity=Gravity.CENTER;typeface=android.graphics.Typeface.DEFAULT_BOLD;setBackgroundColor(Color.rgb(215,20,24));setOnClickListener{wake()}}
   frame.addView(bar,FrameLayout.LayoutParams(-1,dp(68),Gravity.BOTTOM));return frame
