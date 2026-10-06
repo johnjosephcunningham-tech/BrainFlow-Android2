@@ -21,8 +21,9 @@ class MainActivity : Activity() {
  private lateinit var black: View
  private val home="https://book.nymma.ca/kiosk"
  private val h=Handler(Looper.getMainLooper())
- private val showIdle=Runnable{hideKeyboard();idle.visibility=View.VISIBLE;black.visibility=View.GONE}
- private val showBlack=Runnable{hideKeyboard();idle.visibility=View.GONE;black.visibility=View.VISIBLE}
+ private var lastActivityAt=SystemClock.elapsedRealtime()
+ private val showIdle=object:Runnable{override fun run(){val left=60000-(SystemClock.elapsedRealtime()-lastActivityAt);if(left>0){h.postDelayed(this,left);return};hideKeyboard();idle.visibility=View.VISIBLE;black.visibility=View.GONE}}
+ private val showBlack=object:Runnable{override fun run(){val left=1800000-(SystemClock.elapsedRealtime()-lastActivityAt);if(left>0){h.postDelayed(this,left);return};hideKeyboard();idle.visibility=View.GONE;black.visibility=View.VISIBLE}}
  private val screenReceiver=object:BroadcastReceiver(){override fun onReceive(c:Context?,i:Intent?){if(i?.action==Intent.ACTION_SCREEN_ON)runOnUiThread{returnToFrontPage()}}}
  private fun dp(v:Int)=(v*resources.displayMetrics.density).toInt()
 
@@ -38,9 +39,14 @@ class MainActivity : Activity() {
   black=View(this).apply{setBackgroundColor(Color.BLACK);visibility=View.GONE;setOnClickListener{wake()}}
   root.addView(idle,FrameLayout.LayoutParams(-1,-1));root.addView(black,FrameLayout.LayoutParams(-1,-1));setContentView(root)
   CookieManager.getInstance().setAcceptCookie(true);CookieManager.getInstance().setAcceptThirdPartyCookies(web,true)
-  web.settings.apply{javaScriptEnabled=true;domStorageEnabled=true;databaseEnabled=true;allowFileAccess=false;allowContentAccess=true;mediaPlaybackRequiresUserGesture=false;userAgentString+=" SilverbackKiosk/1.14"}
+  web.settings.apply{javaScriptEnabled=true;domStorageEnabled=true;databaseEnabled=true;allowFileAccess=false;allowContentAccess=true;mediaPlaybackRequiresUserGesture=false;userAgentString+=" SilverbackKiosk/1.15"}
+  web.addJavascriptInterface(object{
+   @JavascriptInterface fun active(){runOnUiThread{markActive()}}
+  },"SilverbackActivity")
   web.webChromeClient=object:WebChromeClient(){override fun onPermissionRequest(r:PermissionRequest)=runOnUiThread{r.grant(r.resources)}}
   web.webViewClient=object:WebViewClient(){
+   override fun onPageStarted(v:WebView?,url:String?,favicon:android.graphics.Bitmap?){markActive()}
+   override fun onPageFinished(v:WebView?,url:String?){markActive();v?.evaluateJavascript("""(function(){if(window.__silverbackIdleHook)return;window.__silverbackIdleHook=true;var ping=function(){try{SilverbackActivity.active()}catch(e){}};['pointerdown','pointermove','touchstart','touchmove','click','input','change','keydown','scroll','focus'].forEach(function(n){document.addEventListener(n,ping,{capture:true,passive:true});});})();""",null)}
    override fun shouldOverrideUrlLoading(v:WebView,r:WebResourceRequest):Boolean{val x=r.url.scheme?.lowercase();if(x=="https"||x=="http")return false;Toast.makeText(this@MainActivity,"This tablet is locked to Silverback.",Toast.LENGTH_SHORT).show();return true}
    override fun onReceivedSslError(v:WebView?,x:SslErrorHandler?,e:android.net.http.SslError?){x?.cancel()}
   }
@@ -73,7 +79,8 @@ class MainActivity : Activity() {
  private fun hideKeyboard(){currentFocus?.clearFocus();(getSystemService(Context.INPUT_METHOD_SERVICE)as InputMethodManager).hideSoftInputFromWindow(web.windowToken,0)}
  private fun returnToFrontPage(){hideKeyboard();idle.visibility=View.GONE;black.visibility=View.GONE;web.clearHistory();web.loadUrl(home);reset();hideUi()}
  private fun wake(){returnToFrontPage()}
- private fun reset(){h.removeCallbacks(showIdle);h.removeCallbacks(showBlack);h.postDelayed(showIdle,60000);h.postDelayed(showBlack,1800000)}
+ private fun markActive(){lastActivityAt=SystemClock.elapsedRealtime();if(::idle.isInitialized&&idle.visibility==View.VISIBLE)idle.visibility=View.GONE;if(::black.isInitialized&&black.visibility==View.VISIBLE)black.visibility=View.GONE;reset()}
+ private fun reset(){lastActivityAt=SystemClock.elapsedRealtime();h.removeCallbacks(showIdle);h.removeCallbacks(showBlack);h.postDelayed(showIdle,60000);h.postDelayed(showBlack,1800000)}
  override fun dispatchTouchEvent(e:MotionEvent?):Boolean{if(e?.action==MotionEvent.ACTION_DOWN&&(idle.visibility==View.VISIBLE||black.visibility==View.VISIBLE)){wake();return true};reset();return super.dispatchTouchEvent(e)}
  private fun dedicated(){val d=getSystemService(Context.DEVICE_POLICY_SERVICE)as DevicePolicyManager;val a=ComponentName(this,KioskDeviceAdminReceiver::class.java);if(d.isDeviceOwnerApp(packageName)){d.setLockTaskPackages(a,arrayOf(packageName));try{startLockTask()}catch(_:Exception){}}}
  override fun onUserInteraction(){super.onUserInteraction();reset();hideUi()}
